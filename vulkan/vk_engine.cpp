@@ -113,7 +113,7 @@ void VulkanEngine::cleanup()
 {
 	if (isInitialized)
 	{
-		vkDestroyCommandPool(_device, _commandPool, nullptr);
+		vkDestroyCommandPool(device, commandPool, nullptr);
 
 		vkDestroySwapchainKHR(device, swapchain, nullptr);
 
