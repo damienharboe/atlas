@@ -6,8 +6,15 @@ class VulkanEngine
 {
 	void initVulkan();
 	void initSwapchain();
+	void initCommands();
 
 public:
+	VkQueue graphicsQueue;
+	uint32_t graphicsQueueFamily;
+
+	VkCommandPool commandPool;
+	VkCommandBuffer mainCommandBuffer;
+
 	VkSwapchainKHR swapchain;
 	VkFormat swapchainImageFormat;
 	std::vector<VkImage> swapchainImages;

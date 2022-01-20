@@ -13,7 +13,7 @@
 #define VK_CHECK(x)													\
 	do																\
 	{																\
-		VkResult res = 0;											\
+		VkResult err = x;											\
 		if (err)													\
 		{															\
 			std::cout << "Vulkan error: " << err << std::endl;		\
@@ -53,7 +53,8 @@ void VulkanEngine::initVulkan()
 	this->device = device;
 	this->physicalDevice = physicalDevice;
 
-
+	graphicsQueue = device.get_queue(vkb::QueueType::graphics).value();
+	graphicsQueueFamily = device.get_queue_index(vkb::QueueType::graphics).value();
 }
 
 void VulkanEngine::initSwapchain()
@@ -71,6 +72,19 @@ void VulkanEngine::initSwapchain()
 	swapchainImages = swapchain.get_images().value();
 	swapchainImageViews = swapchain.get_image_views().value();
 	swapchainImageFormat = swapchain.image_format;
+}
+
+void VulkanEngine::initCommands()
+{
+	auto commandPoolInfo = vkinit::commandPoolCreateInfo(graphicsQueueFamily);
+
+	VK_CHECK(vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool));
+
+	auto allocInfo = vkinit::commandBufferAllocInfo(commandPool);
+
+	VK_CHECK(vkAllocateCommandBuffers(device, &allocInfo, &mainCommandBuffer));
+
+
 }
 
 void VulkanEngine::init()
@@ -92,12 +106,15 @@ void VulkanEngine::init()
 
 	initVulkan();
 	initSwapchain();
+	initCommands();
 }
 
 void VulkanEngine::cleanup()
 {
 	if (isInitialized)
 	{
+		vkDestroyCommandPool(_device, _commandPool, nullptr);
+
 		vkDestroySwapchainKHR(device, swapchain, nullptr);
 
 		for (auto imageView : swapchainImageViews)
