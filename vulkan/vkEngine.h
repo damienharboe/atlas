@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vk_types.h"
+#include "vkTypes.h"
 
 class VulkanEngine
 {
@@ -10,8 +10,14 @@ class VulkanEngine
 	void initRenderpass();
 	void initFramebuffers();
 	void initSyncStructures();
+	void initPipelines();
+
+	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	VkPipelineLayout trianglePipelineLayot;
+	VkPipeline trianglePipeline;
+
 	VkSemaphore presentSemaphore, renderSemaphore;
 	VkFence renderFence;
 
