@@ -22,4 +22,6 @@ VkCommandBufferAllocateInfo vkinit::commandBufferAllocInfo(VkCommandPool pool, u
 	allocInfo.commandPool = pool;
 	allocInfo.commandBufferCount = 1;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+	return allocInfo;
 }

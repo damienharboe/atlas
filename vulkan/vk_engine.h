@@ -7,8 +7,17 @@ class VulkanEngine
 	void initVulkan();
 	void initSwapchain();
 	void initCommands();
+	void initRenderpass();
+	void initFramebuffers();
+	void initSyncStructures();
 
 public:
+	VkSemaphore presentSemaphore, renderSemaphore;
+	VkFence renderFence;
+
+	VkRenderPass renderPass;
+	std::vector<VkFramebuffer> framebuffers;
+
 	VkQueue graphicsQueue;
 	uint32_t graphicsQueueFamily;
 
