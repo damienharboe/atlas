@@ -5,6 +5,13 @@
 #include "vma/vk_mem_alloc.h"
 #include <deque>
 #include <functional>
+#include "glm/glm.hpp"
+
+struct MeshPushConstants
+{
+	glm::vec4 data;
+	glm::mat4 renderMatrix;
+};
 
 struct DeletionQueue
 {
@@ -40,6 +47,7 @@ class VulkanEngine
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	VkPipelineLayout meshPipelineLayout;
 	VkPipeline meshPipeline;
 	Mesh triangleMesh;
 

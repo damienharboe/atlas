@@ -13,6 +13,8 @@
 
 #include <iostream>
 #include <fstream>
+#include "glm/gtc/matrix_transform.hpp"
+
 
 #define VK_CHECK(x)													\
 	do																\
@@ -267,6 +269,20 @@ void VulkanEngine::initPipelines()
 	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
 	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, rtriangleFragShader));
 
+	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo();
+
+	VkPushConstantRange pushConstant;
+	pushConstant.offset = 0;
+	pushConstant.size = sizeof(MeshPushConstants);
+	pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	meshPipelineLayoutInfo.pPushConstantRanges = &pushConstant;
+	meshPipelineLayoutInfo.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout));
+
+	pipelineBuilder.pipelineLayout = meshPipelineLayout;
+
 	meshPipeline = pipelineBuilder.buildPipeline(device, renderPass);
 
 	vkDestroyShaderModule(device, meshVertShader, nullptr);
@@ -281,6 +297,7 @@ void VulkanEngine::initPipelines()
 		vkDestroyPipeline(device, meshPipeline, nullptr);
 
 		vkDestroyPipelineLayout(device, trianglePipelineLayot, nullptr);
+		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
 	});
 }
 
@@ -443,6 +460,20 @@ void VulkanEngine::draw()
 	VkDeviceSize offset = 0;
 	vkCmdBindVertexBuffers(cmd, 0, 1, &triangleMesh.vertexBuffer.buffer, &offset);
 
+	glm::vec3 camPos = { 0.f, 0.f, -3.f };
+	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.f);
+	projection[1][1] *= -1;
+
+	glm::mat4 model = glm::rotate(glm::mat4{ 1.f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
+
+	glm::mat4 meshMatrix = projection * view * model;
+
+	MeshPushConstants constants;
+	constants.renderMatrix = meshMatrix;
+
+	vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+
 	vkCmdDraw(cmd, triangleMesh.vertices.size(), 1, 0, 0);
 
 	vkCmdEndRenderPass(cmd);
@@ -481,6 +512,8 @@ void VulkanEngine::draw()
 	presentInfo.pImageIndices = &swapchainImageIndex;
 
 	VK_CHECK(vkQueuePresentKHR(graphicsQueue, &presentInfo));
+
+	frameNumber++;
 }
 
 void VulkanEngine::run()
