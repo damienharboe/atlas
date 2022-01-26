@@ -1,6 +1,28 @@
 #pragma once
 
 #include "vkTypes.h"
+#include "vkMesh.h"
+#include "vma/vk_mem_alloc.h"
+#include <deque>
+#include <functional>
+
+struct DeletionQueue
+{
+	std::deque<std::function<void()>> deletors;
+	
+	void pushFunction(std::function<void()>&& function)
+	{
+		deletors.push_back(function);
+	}
+
+	void flush()
+	{
+		for (auto it = deletors.rbegin(); it != deletors.rend(); it++)
+			(*it)();
+
+		deletors.clear();
+	}
+};
 
 class VulkanEngine
 {
@@ -11,12 +33,25 @@ class VulkanEngine
 	void initFramebuffers();
 	void initSyncStructures();
 	void initPipelines();
+	void loadMeshes();
+
+	void uploadMesh(Mesh& mesh);
 
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	VkPipeline meshPipeline;
+	Mesh triangleMesh;
+
+	VmaAllocator allocator;
+
+	DeletionQueue mainDeletionQueue;
+
+	int selectedShader = 0;
+
 	VkPipelineLayout trianglePipelineLayot;
 	VkPipeline trianglePipeline;
+	VkPipeline redTrianglePipeline;
 
 	VkSemaphore presentSemaphore, renderSemaphore;
 	VkFence renderFence;
