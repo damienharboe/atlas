@@ -2,37 +2,36 @@
 
 VertexInputDescription Vertex::getVertexDescription()
 {
-	VertexInputDescription desc;
+	VertexInputDescription description;
 
-	VkVertexInputBindingDescription mainBinding{};
+	VkVertexInputBindingDescription mainBinding = {};
 	mainBinding.binding = 0;
 	mainBinding.stride = sizeof(Vertex);
 	mainBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	desc.bindings.push_back(mainBinding);
+	description.bindings.push_back(mainBinding);
 
-	VkVertexInputAttributeDescription  posAttrib{};
-	posAttrib.binding = 0;
-	posAttrib.location = 1;
-	posAttrib.format = VK_FORMAT_R32G32B32_SFLOAT;
-	posAttrib.offset = offsetof(Vertex, position);
+	VkVertexInputAttributeDescription positionAttribute = {};
+	positionAttribute.binding = 0;
+	positionAttribute.location = 0;
+	positionAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+	positionAttribute.offset = offsetof(Vertex, position);
 
-	VkVertexInputAttributeDescription  normAttrib{};
-	normAttrib.binding = 0;
-	normAttrib.location = 1;
-	normAttrib.format = VK_FORMAT_R32G32B32_SFLOAT;
-	normAttrib.offset = offsetof(Vertex, normal);
+	VkVertexInputAttributeDescription normalAttribute = {};
+	normalAttribute.binding = 0;
+	normalAttribute.location = 1;
+	normalAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+	normalAttribute.offset = offsetof(Vertex, normal);
 
-	VkVertexInputAttributeDescription colorAttrib{};
-	normAttrib.binding = 0;
-	normAttrib.location = 2;
-	normAttrib.format = VK_FORMAT_R32G32B32_SFLOAT;
-	normAttrib.offset = offsetof(Vertex, color);
+	VkVertexInputAttributeDescription colorAttribute = {};
+	colorAttribute.binding = 0;
+	colorAttribute.location = 2;
+	colorAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+	colorAttribute.offset = offsetof(Vertex, color);
 
-	desc.attributes.push_back(posAttrib);
-	desc.attributes.push_back(normAttrib);
-	desc.attributes.push_back(colorAttrib);
+	description.attributes.push_back(positionAttribute);
+	description.attributes.push_back(normalAttribute);
+	description.attributes.push_back(colorAttribute);
 
-
-	return desc;
+	return description;
 }

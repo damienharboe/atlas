@@ -249,6 +249,27 @@ void VulkanEngine::initPipelines()
 	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, rtriangleFragShader));
 	redTrianglePipeline = pipelineBuilder.buildPipeline(device, renderPass);
 
+	VertexInputDescription vertexDescription = Vertex::getVertexDescription();
+	pipelineBuilder.vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+	pipelineBuilder.vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
+
+	pipelineBuilder.vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
+	pipelineBuilder.vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
+
+	pipelineBuilder.shaderStages.clear();
+
+	VkShaderModule meshVertShader;
+	if (!loadShaderModule("E:\\Code\\atlas\\x64\\Debug\\shaders\\triMesh.spv", &meshVertShader))
+		std::cout << "Error when building triMesh shader module" << std::endl;
+	else
+		std::cout << "triMesh shader module loaded" << std::endl;
+
+	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
+	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, rtriangleFragShader));
+
+	meshPipeline = pipelineBuilder.buildPipeline(device, renderPass);
+
+	vkDestroyShaderModule(device, meshVertShader, nullptr);
 	vkDestroyShaderModule(device, rtriangleVertexShader, nullptr);
 	vkDestroyShaderModule(device, rtriangleFragShader, nullptr);
 	vkDestroyShaderModule(device, triangleVertexShader, nullptr);
@@ -257,6 +278,7 @@ void VulkanEngine::initPipelines()
 	mainDeletionQueue.pushFunction([=]() {
 		vkDestroyPipeline(device, redTrianglePipeline, nullptr);
 		vkDestroyPipeline(device, trianglePipeline, nullptr);
+		vkDestroyPipeline(device, meshPipeline, nullptr);
 
 		vkDestroyPipelineLayout(device, trianglePipelineLayot, nullptr);
 	});
@@ -281,21 +303,29 @@ void VulkanEngine::uploadMesh(Mesh& mesh)
 {
 	VkBufferCreateInfo bufferInfo{};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.pNext = nullptr;
 	bufferInfo.size = mesh.vertices.size() * sizeof(Vertex);
 	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-	VmaAllocationCreateInfo vmaAllocInfo{};
-	vmaAllocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+	VmaAllocationCreateInfo vmaallocInfo = {};
+	vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
-	VK_CHECK(vmaCreateBuffer(allocator, &bufferInfo, &vmaAllocInfo, &mesh.vertexBuffer.buffer, &mesh.vertexBuffer.allocation, nullptr));
+	VK_CHECK(vmaCreateBuffer(allocator, &bufferInfo, &vmaallocInfo,
+		&mesh.vertexBuffer.buffer,
+		&mesh.vertexBuffer.allocation,
+		nullptr));
 
+	//add the destruction of triangle mesh buffer to the deletion queue
 	mainDeletionQueue.pushFunction([=]() {
 		vmaDestroyBuffer(allocator, mesh.vertexBuffer.buffer, mesh.vertexBuffer.allocation);
 	});
 
+	//copy vertex data
 	void* data;
 	vmaMapMemory(allocator, mesh.vertexBuffer.allocation, &data);
+
 	memcpy(data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
+
 	vmaUnmapMemory(allocator, mesh.vertexBuffer.allocation);
 }
 
@@ -349,6 +379,7 @@ void VulkanEngine::init()
 	initFramebuffers();
 	initSyncStructures();
 	initPipelines();
+	loadMeshes();
 
 	isInitialized = true;
 }
@@ -407,12 +438,12 @@ void VulkanEngine::draw()
 
 	vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	if(selectedShader == 0)
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
-	else
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, redTrianglePipeline);
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
 
-	vkCmdDraw(cmd, 3, 1, 0, 0);
+	VkDeviceSize offset = 0;
+	vkCmdBindVertexBuffers(cmd, 0, 1, &triangleMesh.vertexBuffer.buffer, &offset);
+
+	vkCmdDraw(cmd, triangleMesh.vertices.size(), 1, 0, 0);
 
 	vkCmdEndRenderPass(cmd);
 
