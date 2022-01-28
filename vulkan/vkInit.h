@@ -13,7 +13,14 @@ namespace vkinit
 	VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo();
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentState();
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo();
+	VkFramebufferCreateInfo framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent);
 
 	VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
 	VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
+
+	VkImageCreateInfo imageCreateInfo(VkFormat format, VkImageUsageFlags flags, VkExtent3D extent);
+	VkImageViewCreateInfo imageViewCreateInfo(VkFormat format, VkImage image, VkImageAspectFlags flags);
+
+	VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo(bool depthTest, bool depthWrite, VkCompareOp compareOp);
+	VkRenderPassBeginInfo renderPassBeginInfo(VkRenderPass renderPass, VkExtent2D extent, VkFramebuffer framebuffer);
 }

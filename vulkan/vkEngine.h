@@ -47,6 +47,13 @@ class VulkanEngine
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	VkImageView depthImageView;
+	AllocatedImage depthImage;
+
+	VkFormat depthFormat;
+
+	Mesh monkeyMesh;
+
 	VkPipelineLayout meshPipelineLayout;
 	VkPipeline meshPipeline;
 	Mesh triangleMesh;
