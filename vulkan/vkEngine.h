@@ -90,8 +90,6 @@ public:
 
 	DeletionQueue mainDeletionQueue;
 
-	int selectedShader = 0;
-
 	VkPipelineLayout trianglePipelineLayot;
 	VkPipeline trianglePipeline;
 	VkPipeline redTrianglePipeline;

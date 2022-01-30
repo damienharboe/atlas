@@ -67,7 +67,6 @@ void VulkanEngine::initVulkan()
 	allocatorInfo.device = device;
 	allocatorInfo.instance = instance;
 	vmaCreateAllocator(&allocatorInfo, &allocator);
-
 }
 
 void VulkanEngine::initSwapchain()
@@ -253,38 +252,32 @@ void VulkanEngine::initSyncStructures()
 
 void VulkanEngine::initPipelines()
 {
-	VkShaderModule triangleFragShader;
-	if (!loadShaderModule("E:\\Code\\atlas\\x64\\Debug\\shaders\\frag.spv", &triangleFragShader))
-		std::cout << "Error when building frag shader module" << std::endl;
-	else
-		std::cout << "Frag shader module loaded" << std::endl;
-
-	VkShaderModule triangleVertexShader;
-	if(!loadShaderModule("E:\\Code\\atlas\\x64\\Debug\\shaders\\vert.spv", &triangleVertexShader))
-		std::cout << "Error when building vertex shader module" << std::endl;
-	else
-		std::cout << "Vertex shader module loaded" << std::endl;
-
+	// Loading shaders from files
 	VkShaderModule rtriangleFragShader;
 	if (!loadShaderModule("E:\\Code\\atlas\\x64\\Debug\\shaders\\rfrag.spv", &rtriangleFragShader))
 		std::cout << "Error when building frag shader module" << std::endl;
 	else
 		std::cout << "Frag shader module loaded" << std::endl;
 
-	VkShaderModule rtriangleVertexShader;
-	if (!loadShaderModule("E:\\Code\\atlas\\x64\\Debug\\shaders\\rvert.spv", &rtriangleVertexShader))
-		std::cout << "Error when building vertex shader module" << std::endl;
+	VkShaderModule meshVertShader;
+	if (!loadShaderModule("E:\\Code\\atlas\\x64\\Debug\\shaders\\triMesh.spv", &meshVertShader))
+		std::cout << "Error when building triMesh shader module" << std::endl;
 	else
-		std::cout << "Vertex shader module loaded" << std::endl;
-
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo();
+		std::cout << "triMesh shader module loaded" << std::endl;
 	
-	VK_CHECK(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &trianglePipelineLayot));
+	VkPushConstantRange pushConstant;
+	pushConstant.offset = 0;
+	pushConstant.size = sizeof(MeshPushConstants);
+	pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VertexInputDescription vertexDescription = Vertex::getVertexDescription();
+	
+	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo();
+	meshPipelineLayoutInfo.pPushConstantRanges = &pushConstant;
+	meshPipelineLayoutInfo.pushConstantRangeCount = 1;
+	VK_CHECK(vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout));
 
 	PipelineBuilder pipelineBuilder;
-
-	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, triangleVertexShader));
-	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
 
 	pipelineBuilder.vertexInputInfo = vkinit::vertexInputStateCreateInfo();
 	pipelineBuilder.inputAssembly = vkinit::inputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
@@ -300,62 +293,23 @@ void VulkanEngine::initPipelines()
 	pipelineBuilder.rasterizer = vkinit::razterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
 	pipelineBuilder.multisampling = vkinit::multisampleStateCreateInfo();
 	pipelineBuilder.colorBlendAttachment = vkinit::colorBlendAttachmentState();
-	pipelineBuilder.pipelineLayout = trianglePipelineLayot;
 	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-
-	trianglePipeline = pipelineBuilder.buildPipeline(device, renderPass);
-	
-	pipelineBuilder.shaderStages.clear();
-
-	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, rtriangleVertexShader));
-	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, rtriangleFragShader));
-	redTrianglePipeline = pipelineBuilder.buildPipeline(device, renderPass);
-
-	VertexInputDescription vertexDescription = Vertex::getVertexDescription();
 	pipelineBuilder.vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
 	pipelineBuilder.vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
-
+	pipelineBuilder.pipelineLayout = meshPipelineLayout;
 	pipelineBuilder.vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
 	pipelineBuilder.vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
 
-	pipelineBuilder.shaderStages.clear();
-
-	VkShaderModule meshVertShader;
-	if (!loadShaderModule("E:\\Code\\atlas\\x64\\Debug\\shaders\\triMesh.spv", &meshVertShader))
-		std::cout << "Error when building triMesh shader module" << std::endl;
-	else
-		std::cout << "triMesh shader module loaded" << std::endl;
-
 	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
 	pipelineBuilder.shaderStages.push_back(vkinit::pipelineShaderCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, rtriangleFragShader));
-
-	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo();
-
-	VkPushConstantRange pushConstant;
-	pushConstant.offset = 0;
-	pushConstant.size = sizeof(MeshPushConstants);
-	pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	meshPipelineLayoutInfo.pPushConstantRanges = &pushConstant;
-	meshPipelineLayoutInfo.pushConstantRangeCount = 1;
-
-	VK_CHECK(vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout));
-
-	pipelineBuilder.pipelineLayout = meshPipelineLayout;
 
 	meshPipeline = pipelineBuilder.buildPipeline(device, renderPass);
 
 	createMaterial(meshPipeline, meshPipelineLayout, "defaultmesh");
 
 	vkDestroyShaderModule(device, meshVertShader, nullptr);
-	vkDestroyShaderModule(device, rtriangleVertexShader, nullptr);
 	vkDestroyShaderModule(device, rtriangleFragShader, nullptr);
-	vkDestroyShaderModule(device, triangleVertexShader, nullptr);
-	vkDestroyShaderModule(device, triangleFragShader, nullptr);
-
 	mainDeletionQueue.pushFunction([=]() {
-		vkDestroyPipeline(device, redTrianglePipeline, nullptr);
-		vkDestroyPipeline(device, trianglePipeline, nullptr);
 		vkDestroyPipeline(device, meshPipeline, nullptr);
 
 		vkDestroyPipelineLayout(device, trianglePipelineLayot, nullptr);
@@ -496,7 +450,7 @@ Mesh* VulkanEngine::getMesh(const std::string& name)
 
 void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int count)
 {
-	glm::vec3 camPos = { 0.f, -6.f, -10.f };
+	glm::vec3 camPos = { 10.f, 10.f, -10.f };
 
 	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
 	glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
@@ -664,14 +618,6 @@ void VulkanEngine::run()
 		while (SDL_PollEvent(&e) != 0)
 		{
 			if (e.type == SDL_QUIT) quit = true;
-			else if (e.key.keysym.sym == SDLK_SPACE)
-			{
-				selectedShader++;
-				if (selectedShader > 1)
-				{
-					selectedShader = 0;
-				}
-			}
 		}
 
 		draw();
