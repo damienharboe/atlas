@@ -5,7 +5,21 @@
 #include "vma/vk_mem_alloc.h"
 #include <deque>
 #include <functional>
+#include <unordered_map>
 #include "glm/glm.hpp"
+
+struct Material
+{
+	VkPipeline pipeline;
+	VkPipelineLayout pipelineLayout;
+};
+
+struct RenderObject
+{
+	Mesh* mesh;
+	Material* material;
+	glm::mat4 transformMatrix;
+};
 
 struct MeshPushConstants
 {
@@ -41,12 +55,26 @@ class VulkanEngine
 	void initSyncStructures();
 	void initPipelines();
 	void loadMeshes();
+	void initScene();
 
 	void uploadMesh(Mesh& mesh);
 
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	std::vector<RenderObject> renderables;
+
+	std::unordered_map<std::string, Material> materials;
+	std::unordered_map<std::string, Mesh> meshes;
+
+	Material* createMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
+
+	Material* getMaterial(const std::string& name);
+
+	Mesh* getMesh(const std::string& name);
+
+	void drawObjects(VkCommandBuffer cmd, RenderObject* first, int count);
+
 	VkImageView depthImageView;
 	AllocatedImage depthImage;
 

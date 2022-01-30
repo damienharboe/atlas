@@ -148,7 +148,7 @@ void VulkanEngine::initRenderpass()
 	depthAttachment.format = depthFormat;
 	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -165,6 +165,7 @@ void VulkanEngine::initRenderpass()
 	subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
 	VkSubpassDependency dependency;
+	dependency.dependencyFlags = 0;
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;
 	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -191,7 +192,7 @@ void VulkanEngine::initRenderpass()
 	renderPassCreateInfo.subpassCount = 1;
 	renderPassCreateInfo.pSubpasses = &subpass;
 	renderPassCreateInfo.dependencyCount = 2;
-	renderPassCreateInfo.pDependencies = dependencies;
+	renderPassCreateInfo.pDependencies = &dependencies[0];
 
 	VK_CHECK(vkCreateRenderPass(device, &renderPassCreateInfo, nullptr, &renderPass));
 
@@ -344,6 +345,8 @@ void VulkanEngine::initPipelines()
 
 	meshPipeline = pipelineBuilder.buildPipeline(device, renderPass);
 
+	createMaterial(meshPipeline, meshPipelineLayout, "defaultmesh");
+
 	vkDestroyShaderModule(device, meshVertShader, nullptr);
 	vkDestroyShaderModule(device, rtriangleVertexShader, nullptr);
 	vkDestroyShaderModule(device, rtriangleFragShader, nullptr);
@@ -376,6 +379,33 @@ void VulkanEngine::loadMeshes()
 
 	uploadMesh(triangleMesh);
 	uploadMesh(monkeyMesh);
+
+	meshes["monkey"] = monkeyMesh;
+	meshes["triangle"] = triangleMesh;
+}
+
+void VulkanEngine::initScene()
+{
+	RenderObject monkey;
+	monkey.mesh = getMesh("monkey");
+	monkey.material = getMaterial("defaultmesh");
+	monkey.transformMatrix = glm::mat4({ 1.f });
+
+	renderables.push_back(monkey);
+
+	for (int x = -20; x <= 20; x++) {
+		for (int y = -20; y <= 20; y++) {
+
+			RenderObject tri;
+			tri.mesh = getMesh("triangle");
+			tri.material = getMaterial("defaultmesh");
+			glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(x, 0, y));
+			glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
+			tri.transformMatrix = translation * scale;
+
+			renderables.push_back(tri);
+		}
+	}
 }
 
 void VulkanEngine::uploadMesh(Mesh& mesh)
@@ -436,6 +466,74 @@ bool VulkanEngine::loadShaderModule(const char* filePath, VkShaderModule* outSha
 	return true;
 }
 
+Material* VulkanEngine::createMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
+{
+	Material mat;
+	mat.pipeline = pipeline;
+	mat.pipelineLayout = layout;
+	materials[name] = mat;
+	
+	return &materials[name];
+}
+
+Material* VulkanEngine::getMaterial(const std::string& name)
+{
+	auto it = materials.find(name);
+	if (it == materials.end())
+		return nullptr;
+	else
+		return &(*it).second;
+}
+
+Mesh* VulkanEngine::getMesh(const std::string& name)
+{
+	auto it = meshes.find(name);
+	if (it == meshes.end())
+		return nullptr;
+	else
+		return &(*it).second;
+}
+
+void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int count)
+{
+	glm::vec3 camPos = { 0.f, -6.f, -10.f };
+
+	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
+	projection[1][1] *= -1;
+
+	Mesh* lastMesh = nullptr;
+	Material* lastMaterial = nullptr;
+
+	for (int i = 0; i < count; i++)
+	{
+		RenderObject& object = first[i];
+
+		if (object.material != lastMaterial)
+		{
+			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
+			lastMaterial = object.material;
+		}
+
+		glm::mat4 model = object.transformMatrix;
+		glm::mat4 meshMatrix = projection * view * model;
+
+		MeshPushConstants constants;
+		constants.renderMatrix = meshMatrix;
+
+		vkCmdPushConstants(cmd, object.material->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+
+		if (object.mesh != lastMesh)
+		{
+			VkDeviceSize offset = 0;
+			vkCmdBindVertexBuffers(cmd, 0, 1, &object.mesh->vertexBuffer.buffer, &offset);
+			lastMesh = object.mesh;
+		}
+
+		vkCmdDraw(cmd, object.mesh->vertices.size(), 1, 0, 0);
+	}
+}
+
 void VulkanEngine::init()
 {
 	SDL_Init(SDL_INIT_VIDEO);
@@ -459,6 +557,7 @@ void VulkanEngine::init()
 	initSyncStructures();
 	initPipelines();
 	loadMeshes();
+	initScene();
 
 	isInitialized = true;
 }
@@ -484,10 +583,10 @@ void VulkanEngine::draw()
 	VK_CHECK(vkWaitForFences(device, 1, &renderFence, VK_TRUE, UINT64_MAX));
 	VK_CHECK(vkResetFences(device, 1, &renderFence));
 
+	VK_CHECK(vkResetCommandBuffer(mainCommandBuffer, 0));
+
 	uint32_t swapchainImageIndex;
 	VK_CHECK(vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, presentSemaphore, nullptr, &swapchainImageIndex));
-
-	VK_CHECK(vkResetCommandBuffer(mainCommandBuffer, 0));
 
 	VkCommandBuffer cmd = mainCommandBuffer;
 
@@ -513,26 +612,7 @@ void VulkanEngine::draw()
 
 	vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
-
-	VkDeviceSize offset = 0;
-	vkCmdBindVertexBuffers(cmd, 0, 1, &monkeyMesh.vertexBuffer.buffer, &offset);
-
-	glm::vec3 camPos = { 0.f, 0.f, -3.f };
-	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
-	glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.f);
-	projection[1][1] *= -1;
-
-	glm::mat4 model = glm::rotate(glm::mat4{ 1.f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
-
-	glm::mat4 meshMatrix = projection * view * model;
-
-	MeshPushConstants constants;
-	constants.renderMatrix = meshMatrix;
-
-	vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
-
-	vkCmdDraw(cmd, monkeyMesh.vertices.size(), 1, 0, 0);
+	drawObjects(cmd, renderables.data(), renderables.size());
 
 	vkCmdEndRenderPass(cmd);
 
