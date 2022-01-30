@@ -7,6 +7,7 @@
 #include <functional>
 #include <unordered_map>
 #include "glm/glm.hpp"
+#include "../input/input.h"
 
 struct Material
 {
@@ -62,6 +63,8 @@ class VulkanEngine
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	Input input;
+
 	std::vector<RenderObject> renderables;
 
 	std::unordered_map<std::string, Material> materials;

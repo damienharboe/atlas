@@ -15,6 +15,8 @@
 #include <fstream>
 #include "glm/gtc/matrix_transform.hpp"
 
+#include "../input/input.h"
+
 
 #define VK_CHECK(x)													\
 	do																\
@@ -513,6 +515,10 @@ void VulkanEngine::init()
 	loadMeshes();
 	initScene();
 
+	input.registerKeyPress(SDLK_SPACE, [=]() {
+		std::cout << "keydown test" << std::endl;
+	});
+
 	isInitialized = true;
 }
 
@@ -618,6 +624,7 @@ void VulkanEngine::run()
 		while (SDL_PollEvent(&e) != 0)
 		{
 			if (e.type == SDL_QUIT) quit = true;
+			else if (e.type == SDL_KEYDOWN) input.onFrame(&e);
 		}
 
 		draw();
