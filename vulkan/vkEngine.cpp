@@ -452,8 +452,6 @@ Mesh* VulkanEngine::getMesh(const std::string& name)
 
 void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int count)
 {
-	glm::vec3 camPos = { 10.f, 10.f, -10.f };
-
 	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
 	glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
 	projection[1][1] *= -1;
@@ -515,8 +513,28 @@ void VulkanEngine::init()
 	loadMeshes();
 	initScene();
 
-	input.registerKeyPress(SDLK_SPACE, [=]() {
-		std::cout << "keydown test" << std::endl;
+	input.registerKeyPress(SDLK_a, [=]() {
+		camPos.x++;
+	});
+
+	input.registerKeyPress(SDLK_d, [=]() {
+		camPos.x--;
+	});
+
+	input.registerKeyPress(SDLK_LCTRL, [=] {
+		camPos.y++;
+	});
+
+	input.registerKeyPress(SDLK_LSHIFT, [=] {
+		camPos.y--;
+	});
+
+	input.registerKeyPress(SDLK_w, [=] {
+		camPos.z++;
+	});
+
+	input.registerKeyPress(SDLK_s, [=] {
+		camPos.z--;
 	});
 
 	isInitialized = true;
@@ -624,7 +642,8 @@ void VulkanEngine::run()
 		while (SDL_PollEvent(&e) != 0)
 		{
 			if (e.type == SDL_QUIT) quit = true;
-			else if (e.type == SDL_KEYDOWN) input.onFrame(&e);
+			
+			input.onFrame(&e);
 		}
 
 		draw();

@@ -63,6 +63,8 @@ class VulkanEngine
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	glm::vec3 camPos = { 10.f, 10.f, -10.f };
+
 	Input input;
 
 	std::vector<RenderObject> renderables;
