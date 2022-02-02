@@ -24,6 +24,7 @@ class Input
 	std::unordered_map<SDL_Keycode, bool> keyState;
 
 public:
+	// Must be called every frame
 	void onFrame(SDL_Event* e);
 
 	// Callback is invoked when keypress event is fired.
