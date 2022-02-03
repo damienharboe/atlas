@@ -47,6 +47,17 @@ struct DeletionQueue
 	}
 };
 
+struct FrameData
+{
+	VkSemaphore presentSemaphore, renderSemaphore;
+	VkFence renderFence;
+
+	VkCommandPool commandPool;
+	VkCommandBuffer mainCommandBuffer;
+};
+
+constexpr unsigned int frameOverlap = 2;
+
 class VulkanEngine
 {
 	void initVulkan();
@@ -64,6 +75,10 @@ class VulkanEngine
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	FrameData frames[frameOverlap];
+
+	FrameData& getCurrentFrame();
+
 	glm::vec3 camPos = { 10.f, 10.f, -10.f };
 
 	Input input;
@@ -101,17 +116,11 @@ public:
 	VkPipeline trianglePipeline;
 	VkPipeline redTrianglePipeline;
 
-	VkSemaphore presentSemaphore, renderSemaphore;
-	VkFence renderFence;
-
 	VkRenderPass renderPass;
 	std::vector<VkFramebuffer> framebuffers;
 
 	VkQueue graphicsQueue;
 	uint32_t graphicsQueueFamily;
-
-	VkCommandPool commandPool;
-	VkCommandBuffer mainCommandBuffer;
 
 	VkSwapchainKHR swapchain;
 	VkFormat swapchainImageFormat;
