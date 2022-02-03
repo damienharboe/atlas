@@ -452,8 +452,8 @@ Mesh* VulkanEngine::getMesh(const std::string& name)
 
 void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int count)
 {
-	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
-	glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
+	glm::mat4 view = cam.getView();
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), static_cast<float>(windowExtent.width) / static_cast<float>(windowExtent.height), 0.1f, 200.0f);
 	projection[1][1] *= -1;
 
 	Mesh* lastMesh = nullptr;
@@ -470,6 +470,8 @@ void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int cou
 		}
 
 		glm::mat4 model = object.transformMatrix;
+		glm::mat4 model2 = glm::rotate(object.transformMatrix, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
+
 		glm::mat4 meshMatrix = projection * view * model;
 
 		MeshPushConstants constants;
@@ -503,6 +505,8 @@ void VulkanEngine::init()
 		windowFlags
 	);
 
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+
 	initVulkan();
 	initSwapchain();
 	initRenderpass();
@@ -512,30 +516,8 @@ void VulkanEngine::init()
 	initPipelines();
 	loadMeshes();
 	initScene();
-
-	input.registerKeyPress(SDLK_a, [=]() {
-		camPos.x++;
-	});
-
-	input.registerKeyPress(SDLK_d, [=]() {
-		camPos.x--;
-	});
-
-	input.registerKeyPress(SDLK_LCTRL, [=] {
-		camPos.y++;
-	});
-
-	input.registerKeyPress(SDLK_LSHIFT, [=] {
-		camPos.y--;
-	});
-
-	input.registerKeyPress(SDLK_w, [=] {
-		camPos.z++;
-	});
-
-	input.registerKeyPress(SDLK_s, [=] {
-		camPos.z--;
-	});
+	
+	cam.init(&input);
 
 	isInitialized = true;
 }
@@ -642,9 +624,11 @@ void VulkanEngine::run()
 		while (SDL_PollEvent(&e) != 0)
 		{
 			if (e.type == SDL_QUIT) quit = true;
-			
-			input.onFrame(&e);
+
+			input.onEventLoop(&e);
 		}
+
+		input.onFrame();
 
 		draw();
 	}

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include "glm/glm.hpp"
 #include "../input/input.h"
+#include "../camera/camera.h"
 
 struct Material
 {
@@ -66,6 +67,7 @@ public:
 	glm::vec3 camPos = { 10.f, 10.f, -10.f };
 
 	Input input;
+	Camera cam;
 
 	std::vector<RenderObject> renderables;
 
