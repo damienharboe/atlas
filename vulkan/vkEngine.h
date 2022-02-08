@@ -54,6 +54,16 @@ struct FrameData
 
 	VkCommandPool commandPool;
 	VkCommandBuffer mainCommandBuffer;
+
+	AllocatedBuffer camInfo;
+	VkDescriptorSet globalDescriptor;
+};
+
+struct GPUCameraData 
+{
+	glm::mat4 view;
+	glm::mat4 proj;
+	glm::mat4 viewproj;
 };
 
 constexpr unsigned int frameOverlap = 2;
@@ -69,12 +79,20 @@ class VulkanEngine
 	void initPipelines();
 	void loadMeshes();
 	void initScene();
+	void initImGui();
+	void initDescriptors();
+	AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
 	void uploadMesh(Mesh& mesh);
 
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	VkPhysicalDeviceProperties gpuProps;
+
+	VkDescriptorSetLayout globalSetLayout;
+	VkDescriptorPool descriptorPool;
+
 	FrameData frames[frameOverlap];
 
 	FrameData& getCurrentFrame();

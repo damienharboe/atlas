@@ -17,6 +17,10 @@
 
 #include "../input/input.h"
 
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_sdl.h"
+#include "imgui/imgui_impl_vulkan.h"
+
 
 #define VK_CHECK(x)													\
 	do																\
@@ -69,6 +73,9 @@ void VulkanEngine::initVulkan()
 	allocatorInfo.device = device;
 	allocatorInfo.instance = instance;
 	vmaCreateAllocator(&allocatorInfo, &allocator);
+
+	gpuProps = physicalDevice.properties;
+	std::cout << "min buffer align: " << gpuProps.limits.minUniformBufferOffsetAlignment << std::endl;
 }
 
 void VulkanEngine::initSwapchain()
@@ -276,6 +283,10 @@ void VulkanEngine::initPipelines()
 	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo();
 	meshPipelineLayoutInfo.pPushConstantRanges = &pushConstant;
 	meshPipelineLayoutInfo.pushConstantRangeCount = 1;
+
+	meshPipelineLayoutInfo.setLayoutCount = 1;
+	meshPipelineLayoutInfo.pSetLayouts = &globalSetLayout;
+
 	VK_CHECK(vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout));
 
 	PipelineBuilder pipelineBuilder;
@@ -361,6 +372,98 @@ void VulkanEngine::initScene()
 			renderables.push_back(tri);
 		}
 	}
+}
+
+void VulkanEngine::initImGui()
+{
+	
+}
+
+void VulkanEngine::initDescriptors()
+{
+	std::vector<VkDescriptorPoolSize> sizes =
+	{
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 }
+	};
+
+	VkDescriptorPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.flags = 0;
+	poolInfo.maxSets = 10;
+	poolInfo.poolSizeCount = (uint32_t)sizes.size();
+	poolInfo.pPoolSizes = sizes.data();
+
+	VkDescriptorSetLayoutBinding camBufferBinding{};
+	camBufferBinding.binding = 0;
+	camBufferBinding.descriptorCount = 1;
+	camBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	camBufferBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutCreateInfo descInfo{};
+	descInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descInfo.pNext = nullptr;
+	descInfo.bindingCount = 1;
+	descInfo.flags = 0;
+	descInfo.pBindings = &camBufferBinding;
+
+	vkCreateDescriptorSetLayout(device, &descInfo, nullptr, &globalSetLayout);
+	vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
+
+	for (int i = 0; i < frameOverlap; i++)
+	{
+		frames[i].camInfo = createBuffer(sizeof(GPUCameraData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.pNext = nullptr;
+		allocInfo.descriptorPool = descriptorPool;
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = &globalSetLayout;
+
+		vkAllocateDescriptorSets(device, &allocInfo, &frames[i].globalDescriptor);
+
+		VkDescriptorBufferInfo bufferInfo;
+		bufferInfo.buffer = frames[i].camInfo.buffer;
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(GPUCameraData);
+
+		VkWriteDescriptorSet setWrite{};
+		setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		setWrite.pNext = nullptr;
+		setWrite.dstBinding = 0;
+		setWrite.dstSet = frames[i].globalDescriptor;
+		setWrite.descriptorCount = 1;
+		setWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		setWrite.pBufferInfo = &bufferInfo;
+
+		vkUpdateDescriptorSets(device, 1, &setWrite, 0, nullptr);
+	}
+
+	mainDeletionQueue.pushFunction([=] {
+		for (int i = 0; i < frameOverlap; i++)
+			vmaDestroyBuffer(allocator, frames[i].camInfo.buffer, frames[i].camInfo.allocation);
+
+		vkDestroyDescriptorSetLayout(device, globalSetLayout, nullptr);
+		vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+	});
+}
+
+AllocatedBuffer VulkanEngine::createBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+{
+	VkBufferCreateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.pNext = nullptr;
+	bufferInfo.size = allocSize;
+	bufferInfo.usage = usage;
+
+	VmaAllocationCreateInfo vmaAllocInfo{};
+	vmaAllocInfo.usage = memoryUsage;
+
+	AllocatedBuffer newBuffer;
+	
+	VK_CHECK(vmaCreateBuffer(allocator, &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation, nullptr));
+
+	return newBuffer;
 }
 
 void VulkanEngine::uploadMesh(Mesh& mesh)
@@ -456,9 +559,19 @@ Mesh* VulkanEngine::getMesh(const std::string& name)
 
 void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int count)
 {
-	glm::mat4 view = cam.getView();
 	glm::mat4 projection = glm::perspective(glm::radians(70.f), static_cast<float>(windowExtent.width) / static_cast<float>(windowExtent.height), 0.1f, 200.0f);
 	projection[1][1] *= -1;
+	glm::mat4 view = cam.getView();
+
+	GPUCameraData camData;
+	camData.proj = projection;
+	camData.view = view;
+	camData.viewproj = projection * view;
+
+	void* data;
+	vmaMapMemory(allocator, getCurrentFrame().camInfo.allocation, &data);
+	memcpy(data, &camData, sizeof(GPUCameraData));
+	vmaUnmapMemory(allocator, getCurrentFrame().camInfo.allocation);
 
 	Mesh* lastMesh = nullptr;
 	Material* lastMaterial = nullptr;
@@ -471,6 +584,8 @@ void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int cou
 		{
 			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
 			lastMaterial = object.material;
+
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &getCurrentFrame().globalDescriptor, 0, nullptr);
 		}
 
 		glm::mat4 model = object.transformMatrix;
@@ -479,7 +594,7 @@ void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int cou
 		glm::mat4 meshMatrix = projection * view * model;
 
 		MeshPushConstants constants;
-		constants.renderMatrix = meshMatrix;
+		constants.renderMatrix = object.transformMatrix;
 
 		vkCmdPushConstants(cmd, object.material->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
 
@@ -517,6 +632,7 @@ void VulkanEngine::init()
 	initFramebuffers();
 	initCommands();
 	initSyncStructures();
+	initDescriptors();
 	initPipelines();
 	loadMeshes();
 	initScene();
