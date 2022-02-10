@@ -1,4 +1,6 @@
 #include "vulkan/vkEngine.h"
+#include "audio/audio.h"
+#include "audio/speaker.h"
 
 int main(int argc, char* arv[])
 {

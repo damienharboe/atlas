@@ -55,6 +55,11 @@ void Camera::updateDir(glm::vec2 mousePos)
 	camFront = glm::normalize(front);
 }
 
+glm::vec3 Camera::getPos()
+{
+	return camPos;
+}
+
 void Camera::updatePosRel(glm::vec3 relPos)
 {
 	camPos += relPos;

@@ -23,5 +23,9 @@ public:
 	void updateDir(glm::vec2 mousePos);
 	void updateDirDelta(glm::vec2 mousePos);
 
+	glm::vec3 getPos();
+	float getYaw() { return yaw; };
+	float getPitch() { return pitch; };
+
 	glm::mat4 getView();
 };

@@ -9,6 +9,8 @@
 #include "glm/glm.hpp"
 #include "../input/input.h"
 #include "../camera/camera.h"
+#include "../audio/speaker.h"
+#include "../audio/audio.h"
 
 struct Material
 {
@@ -88,6 +90,9 @@ class VulkanEngine
 	bool loadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 public:
+	Speaker s;
+	Audio audio;
+
 	VkPhysicalDeviceProperties gpuProps;
 
 	VkDescriptorSetLayout globalSetLayout;

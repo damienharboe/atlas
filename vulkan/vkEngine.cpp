@@ -592,6 +592,7 @@ void VulkanEngine::drawObjects(VkCommandBuffer cmd, RenderObject* first, int cou
 		glm::mat4 model2 = glm::rotate(object.transformMatrix, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
 
 		glm::mat4 meshMatrix = projection * view * model;
+		
 
 		MeshPushConstants constants;
 		constants.renderMatrix = object.transformMatrix;
@@ -638,6 +639,11 @@ void VulkanEngine::init()
 	initScene();
 	
 	cam.init(&input);
+	audio.init();
+
+
+	s.loadSound((char*)"E:\\Code\\atlas\\assets\\newtankog.wav");
+	s.play();
 
 	isInitialized = true;
 }
@@ -646,6 +652,7 @@ void VulkanEngine::cleanup()
 {
 	if (isInitialized)
 	{
+		audio.cleanup();
 		for(int i = 0; i < frameOverlap; i++)
 			vkWaitForFences(device, 1, &frames[i].renderFence, true, UINT64_MAX);
 
@@ -661,6 +668,10 @@ void VulkanEngine::cleanup()
 
 void VulkanEngine::draw()
 {
+	//audio.setListenerPos(cam.getPos());
+	
+	s.setPos(cam.getPos());
+
 	VK_CHECK(vkWaitForFences(device, 1, &getCurrentFrame().renderFence, VK_TRUE, UINT64_MAX));
 	VK_CHECK(vkResetFences(device, 1, &getCurrentFrame().renderFence));
 
